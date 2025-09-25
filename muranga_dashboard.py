@@ -650,4 +650,4 @@ if __name__ == '__main__':
     else:
         # Development mode
         print("🔧 Development mode: Starting on port 5001")
-        app.run(debug=True, port=5001, use_reloader=False)
+        app.run(debug=True, host='127.0.0.1', port=5881)
