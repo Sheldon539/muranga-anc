@@ -631,23 +631,5 @@ def template_fallback():
     </html>
     """
 
-# Production configuration
 if __name__ == '__main__':
-    # Check if we're in production environment
-    import os
-    port = int(os.environ.get('PORT', 5001))
-    
-    # Use different settings for production
-    if os.environ.get('FLASK_ENV') == 'production':
-        app.config['DEBUG'] = False
-        app.config['PREFERRED_URL_SCHEME'] = 'https'
-        
-        # Use production database (SQLite for simplicity)
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///production.db'
-        
-        print("🚀 Production mode: Starting on port", port)
-        app.run(host='0.0.0.0', port=port, debug=False)
-    else:
-        # Development mode
-        print("🔧 Development mode: Starting on port 5001")
-        app.run(debug=True, host='127.0.0.1', port=5881)
+    app.run(host='0.0.0.0', port=5001, debug=False)
