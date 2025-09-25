@@ -1,0 +1,30 @@
+from datetime import datetime
+from enum import Enum
+
+class DataSource(Enum):
+    EHR = "EHR"
+    LIS = "LIS"
+    PHR = "PHR"
+
+class Patient:
+    def __init__(self, patient_id: str, name: str, dob: str, gender: str):
+        self.patient_id = patient_id
+        self.name = name
+        self.dob = dob
+        self.gender = gender
+        self.created_at = datetime.now()
+
+class LabResult:
+    def __init__(self, test_name: str, result: str, units: str, normal_range: str):
+        self.test_name = test_name
+        self.result = result
+        self.units = units
+        self.normal_range = normal_range
+        self.timestamp = datetime.now()
+
+class ClinicalNote:
+    def __init__(self, note_type: str, content: str, author: str):
+        self.note_type = note_type
+        self.content = content
+        self.author = author
+        self.timestamp = datetime.now()

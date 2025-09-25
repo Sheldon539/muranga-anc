@@ -1,0 +1,7 @@
+venv-experimental/ 
+venv/ 
+__pycache__/ 
+instance/ 
+*.pyc 
+.env 
+.DS_Store 

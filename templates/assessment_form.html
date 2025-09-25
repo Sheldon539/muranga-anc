@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assess Patient - Murang'a ANC System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .symptoms-checkbox {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 10px;
+        }
+        .required-field::after {
+            content: " *";
+            color: red;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation Header -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <strong>Murang'a ANC System</strong>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="nav-link active" href="{{ url_for('assess_patient') }}">Assess Patient</a>
+                <a class="nav-link" href="{{ url_for('list_patients') }}">Patients</a>
+                <a class="nav-link" href="{{ url_for('list_alerts') }}">Alerts</a>
+                <a class="nav-link" href="{{ url_for('reports') }}">Reports</a>
+                <a class="nav-link" href="{{ url_for('logout') }}">Logout ({{ session.get('user_name', 'User') }})</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-10 mx-auto">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">📋 Assess New Patient</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="assessmentForm">
+                            <!-- Patient Information -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5 class="border-bottom pb-2">Patient Information</h5>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="patient_id" class="form-label required-field">Patient ID</label>
+                                    <input type="text" class="form-control" id="patient_id" name="patient_id" 
+                                           placeholder="e.g., MUR001" required>
+                                    <small class="form-text text-muted">Enter existing patient ID or new ID for registration</small>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="name" class="form-label required-field">Full Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="dob" class="form-label required-field">Date of Birth</label>
+                                    <input type="date" class="form-control" id="dob" name="dob" required>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="gestation_weeks" class="form-label required-field">Gestation Weeks</label>
+                                    <input type="number" class="form-control" id="gestation_weeks" 
+                                           name="gestation_weeks" min="1" max="42" required>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Assessed By</label>
+                                    <input type="text" class="form-control" value="{{ session.get('user_name', 'User') }}" readonly>
+                                    <input type="hidden" name="assessed_by" value="{{ session.get('user_name', 'User') }}">
+                                </div>
+                            </div>
+
+                            <!-- Vital Signs -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5 class="border-bottom pb-2">Vital Signs</h5>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="systolic_bp" class="form-label required-field">Systolic BP (mmHg)</label>
+                                    <input type="number" class="form-control" id="systolic_bp" 
+                                           name="systolic_bp" min="70" max="200" required>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="diastolic_bp" class="form-label required-field">Diastolic BP (mmHg)</label>
+                                    <input type="number" class="form-control" id="diastolic_bp" 
+                                           name="diastolic_bp" min="40" max="150" required>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label for="urine_protein" class="form-label required-field">Urine Protein (mg/dL)</label>
+                                    <input type="number" class="form-control" id="urine_protein" 
+                                           name="urine_protein" min="0" max="1000" required>
+                                    <small class="form-text text-muted">0 = normal, 30+ = proteinuria</small>
+                                </div>
+                            </div>
+
+                            <!-- Symptoms -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5 class="border-bottom pb-2">Symptoms</h5>
+                                    <small class="text-muted">Check all that apply</small>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <div class="symptoms-checkbox">
+                                        <div class="row">
+                                            {% for symptom in [
+                                                'severe_headache', 'visual_disturbances', 'upper_abdominal_pain', 
+                                                'nausea_vomiting', 'swelling_face_hands', 'shortness_of_breath',
+                                                'decreased_urine', 'chest_pain', 'vaginal_bleeding',
+                                                'fever', 'dizziness', 'fatigue'
+                                            ] %}
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" 
+                                                               name="symptoms" value="{{ symptom }}" 
+                                                               id="symptom_{{ symptom }}">
+                                                        <label class="form-check-label" for="symptom_{{ symptom }}">
+                                                            {{ symptom.replace('_', ' ').title() }}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Medical History -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h5 class="border-bottom pb-2">Medical History</h5>
+                                    <small class="text-muted">Check all that apply</small>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <div class="symptoms-checkbox">
+                                        <div class="row">
+                                            {% for history in [
+                                                'previous_preeclampsia', 'chronic_hypertension', 'diabetes',
+                                                'kidney_disease', 'autoimmune_disease', 'multiple_pregnancy',
+                                                'first_pregnancy', 'family_history', 'obesity',
+                                                'age_under_20', 'age_over_35', 'ivf_pregnancy'
+                                            ] %}
+                                                <div class="col-md-4 mb-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" 
+                                                               name="medical_history" value="{{ history }}" 
+                                                               id="history_{{ history }}">
+                                                        <label class="form-check-label" for="history_{{ history }}">
+                                                            {{ history.replace('_', ' ').title() }}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Form Actions -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                        <button type="reset" class="btn btn-secondary me-md-2">Clear Form</button>
+                                        <button type="submit" class="btn btn-success">
+                                            🏥 Assess Patient Risk
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Quick Guide -->
+                <div class="card mt-4">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">📊 Assessment Guidelines</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong>Blood Pressure:</strong>
+                                <ul class="small">
+                                    <li>Normal: <120/80 mmHg</li>
+                                    <li>Elevated: 120-129/<80 mmHg</li>
+                                    <li>Stage 1: 130-139/80-89 mmHg</li>
+                                    <li>Stage 2: ≥140/90 mmHg</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Urine Protein:</strong>
+                                <ul class="small">
+                                    <li>Normal: 0-15 mg/dL</li>
+                                    <li>Mild: 16-30 mg/dL</li>
+                                    <li>Moderate: 31-100 mg/dL</li>
+                                    <li>Severe: >100 mg/dL</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Gestation:</strong>
+                                <ul class="small">
+                                    <li>1st Trimester: <14 weeks</li>
+                                    <li>2nd Trimester: 14-27 weeks</li>
+                                    <li>3rd Trimester: 28+ weeks</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Form validation and enhancements
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('assessmentForm');
+            
+            // Add today's date as default for visit date
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Set reasonable default values for testing
+            document.getElementById('gestation_weeks').value = 24;
+            document.getElementById('systolic_bp').value = 120;
+            document.getElementById('diastolic_bp').value = 80;
+            document.getElementById('urine_protein').value = 0;
+            
+            // Form submission handler
+            form.addEventListener('submit', function(e) {
+                const systolic = parseInt(document.getElementById('systolic_bp').value);
+                const diastolic = parseInt(document.getElementById('diastolic_bp').value);
+                
+                // Basic BP validation
+                if (systolic < diastolic) {
+                    alert('Error: Systolic BP cannot be lower than Diastolic BP');
+                    e.preventDefault();
+                    return;
+                }
+                
+                if (systolic > 200 || diastolic > 150) {
+                    if (!confirm('Warning: Very high BP values entered. Continue?')) {
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Murang'a ANC System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>ANC Program Reports & Analytics</h2>
+    <div>
+        <a href="/dashboard" class="btn btn-outline-primary">← Dashboard</a>
+        <button onclick="window.print()" class="btn btn-outline-secondary">📊 Print Report</button>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row mb-4">
+    <!-- Key Statistics -->
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.total_patients }}</h5>
+                <p class="card-text">Total Patients</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title">{{ visits_count }}</h5>
+                <p class="card-text">ANC Visits</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.total_alerts }}</h5>
+                <p class="card-text">Total Alerts</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.critical_alerts }}</h5>
+                <p class="card-text">Critical Cases</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Risk Level Distribution -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Risk Level Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="riskChart" width="400" height="200"></canvas>
+                <div class="mt-3">
+                    {% for level, count in risk_distribution.items() %}
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="badge 
+                            {% if level == 'LOW' %}bg-success
+                            {% elif level == 'MODERATE' %}bg-warning
+                            {% else %}bg-danger{% endif %}">
+                            {{ level }}
+                        </span>
+                        <span>{{ count }} visits</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Age Distribution -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Patient Age Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="ageChart" width="400" height="200"></canvas>
+                <div class="mt-3">
+                    {% for group, count in age_groups.items() %}
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>{{ group }}</span>
+                        <span>{{ count }} patients</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gestation Distribution -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0">Gestation Period Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="gestationChart" width="400" height="200"></canvas>
+                <div class="mt-3">
+                    {% for group, count in gestation_groups.items() %}
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>{{ group }}</span>
+                        <span>{{ count }} patients</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Visits -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Monthly Visit Trends</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" width="400" height="200"></canvas>
+                <div class="mt-3">
+                    {% for month, count in monthly_visits.items() %}
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>{{ month }}</span>
+                        <span>{{ count }} visits</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Village Distribution -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Patient Distribution by Village</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for village, count in villages.items() %}
+                    <div class="col-md-3 mb-2">
+                        <div class="d-flex justify-content-between p-2 border rounded">
+                            <strong>{{ village }}</strong>
+                            <span class="badge bg-primary">{{ count }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Risk Level Chart
+    const riskCtx = document.getElementById('riskChart').getContext('2d');
+    const riskChart = new Chart(riskCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ risk_distribution.keys() | list | tojson }},
+            datasets: [{
+                data: {{ risk_distribution.values() | list }},
+                backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+            }]
+        }
+    });
+
+    // Age Distribution Chart
+    const ageCtx = document.getElementById('ageChart').getContext('2d');
+    const ageChart = new Chart(ageCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ age_groups.keys() | list | tojson }},
+            datasets: [{
+                label: 'Patients',
+                data: {{ age_groups.values() | list }},
+                backgroundColor: '#28a745'
+            }]
+        }
+    });
+
+    // Gestation Chart
+    const gestationCtx = document.getElementById('gestationChart').getContext('2d');
+    const gestationChart = new Chart(gestationCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ gestation_groups.keys() | list | tojson }},
+            datasets: [{
+                data: {{ gestation_groups.values() | list }},
+                backgroundColor: ['#ffc107', '#fd7e14', '#dc3545']
+            }]
+        }
+    });
+
+    // Monthly Visits Chart
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    const monthlyChart = new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: {{ monthly_visits.keys() | list | tojson }},
+            datasets: [{
+                label: 'Visits',
+                data: {{ monthly_visits.values() | list }},
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true
+            }]
+        }
+    });
+</script>
+
+<style>
+    .card { border: none; }
+    .card-header { border-bottom: 1px solid rgba(0,0,0,.125); }
+    canvas { max-height: 200px; }
+</style>
+{% endblock %}
